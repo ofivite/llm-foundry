@@ -16,8 +16,32 @@ model:
   expansion_ratio: 4
   max_seq_len: ${max_seq_len}
   vocab_size: 50368
+  tie_word_embeddings: true
+  logit_scale: ${eval:'1 / ${.mup_config.d_model_ratio}'}
   attn_config:
     attn_impl: triton
+    softmax_scale: ${eval:'${..mup_config.d_heads_base}**0.5 / (${..d_model} / ${..n_heads})'} # NB: can optionally multiple by ${..mup_config.d_heads_base}**0.5, to be compatible with base model
+  init_config:
+    name: baseline_
+    _init_std: 0.01 # HP value to be tuned
+    init_std: ${eval:'${._init_std} / ${..d_model}**0.5'} # NB: we can do muP scaling like this only in tied case, when Linear layers = matrix-like params
+    init_div_is_residual: True
+    emb_init_std: ${eval:'${._init_std} / ${..mup_config.d_model_base}**0.5'}
+    emb_init_uniform_lim: None
+  mup_config: 
+    d_model_base: 256
+    n_heads_base: ${..n_heads}
+    d_heads_base: ${eval:'${.d_model_base} / ${.n_heads_base}'}
+    d_model_ratio: ${eval:'${..d_model} / ${.d_model_base}'} 
+    matrix_like_params:
+      - param_str_match: attn.Wqkv.weight
+        lr: ${eval:'${optimizer.lr} / ${model.mup_config.d_model_ratio}'}
+      - param_str_match: attn.out_proj.weight
+        lr: ${eval:'${optimizer.lr} / ${model.mup_config.d_model_ratio}'}
+      - param_str_match: ffn.up_proj.weight
+        lr: ${eval:'${optimizer.lr} / ${model.mup_config.d_model_ratio}'}
+      - param_str_match: ffn.down_proj.weight
+        lr: ${eval:'${optimizer.lr} / ${model.mup_config.d_model_ratio}'}
 
 # Tokenizer
 tokenizer:
@@ -64,6 +88,7 @@ optimizer:
   - 0.95
   eps: 1.0e-08
   weight_decay: 0.0
+  param_groups: ${model.mup_config.matrix_like_params}
 
 algorithms:
   gradient_clipping:

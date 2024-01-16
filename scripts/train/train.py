@@ -624,6 +624,9 @@ def main(cfg: DictConfig) -> Trainer:
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
 
+    # Register custom omegaconf resolvers.
+    om.register_new_resolver("eval", eval)
+
     # Disable resolving environment variables through omegaconf.
     om.clear_resolver('oc.env')
 
