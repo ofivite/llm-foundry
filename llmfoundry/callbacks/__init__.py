@@ -11,6 +11,7 @@ from llmfoundry.callbacks.monolithic_ckpt_callback import \
 from llmfoundry.callbacks.resumption_callbacks import (GlobalLRScaling,
                                                        LayerFreezing)
 from llmfoundry.callbacks.scheduled_gc_callback import ScheduledGarbageCollector
+from llmfoundry.callbacks.mup_monitor import MupMonitor
 
 __all__ = [
     'FDiffMetrics',
@@ -22,4 +23,5 @@ __all__ = [
     'HuggingFaceCheckpointer',
     'AsyncEval',
     'CurriculumLearning',
+    'MupMonitor',
 ]

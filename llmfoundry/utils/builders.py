@@ -14,7 +14,7 @@ from composer import algorithms
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, MemorySnapshot, OOMObserver,
                                 OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor)
+                                SpeedMonitor, ActivationMonitor)
 from composer.core import Algorithm, Callback, Evaluator
 from composer.datasets.in_context_learning_evaluation import \
     get_icl_task_dataloader
@@ -35,7 +35,8 @@ from llmfoundry.callbacks import (AsyncEval, CurriculumLearning, EvalGauntlet,
                                   FDiffMetrics, GlobalLRScaling,
                                   HuggingFaceCheckpointer, LayerFreezing,
                                   MonolithicCheckpointSaver,
-                                  ScheduledGarbageCollector)
+                                  ScheduledGarbageCollector, 
+                                  MupMonitor)
 from llmfoundry.data.dataloader import build_dataloader
 from llmfoundry.optim import (DecoupledAdaLRLion, DecoupledClipLion,
                               DecoupledLionW)
@@ -228,6 +229,10 @@ def build_callback(
             )
         return CurriculumLearning(**kwargs,
                                   current_dataset_config=config['train_loader'])
+    elif name == 'mup_monitor':
+        return MupMonitor(**kwargs)
+    elif name == 'activation_monitor':
+        return ActivationMonitor(**kwargs)
     else:
         raise ValueError(f'Not sure how to build callback: {name}')
 
