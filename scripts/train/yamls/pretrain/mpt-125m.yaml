@@ -137,7 +137,7 @@ callbacks:
     only_log_wandb: false
 
 loggers:
-  mlflow: {}
+  mlflow:
     experiment_name: mpt-125m-test
 
 save_overwrite: true
