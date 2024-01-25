@@ -401,8 +401,12 @@ def build_tokenizer(
         tokenizer_kwargs: Dict[str, Any]) -> PreTrainedTokenizerBase:
     os.environ['TRANSFORMERS_NO_ADVISORY_WARNINGS'] = '1'
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+    
+    array_id = os.getenv('SLURM_ARRAY_TASK_ID', '')
+    assert array_id
+    array_id = int(array_id)
 
-    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_completed_tokenizer_setup'
+    signal_file_path = f'.node_{dist.get_node_rank()}_local_rank0_slurm_array_id{array_id}_completed_tokenizer_setup'
 
     if dist.is_available() and dist.is_initialized(
     ) and dist.get_world_size() > 1:
