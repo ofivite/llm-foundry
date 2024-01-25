@@ -635,6 +635,20 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+
+    array_id = os.getenv('SLURM_ARRAY_TASK_ID', '')
+    assert array_id
+    array_id = int(array_id)
+    print(f'SLURM_ARRAY_TASK_ID = {array_id}')
+    
+    LR_VALS = [0.00024414, 0.00053911, 0.00119044, 0.00262871, 0.00580467,
+               0.01281774, 0.02830386, 0.0625    ]  # np.logspace(-12, -4, 8, base=2)
+    
+    assert array_id < len(LR_VALS)
+    cfg.optimizer.lr = LR_VALS[array_id]
+    cfg.model.init_config._init_std = 1.
+    cfg.run_name = f'width-{cfg.model.d_model}-lr-{array_id}-std-{cfg.model.init_config._init_std}' # -std-fixed-horizon-fixed
+
     om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)
