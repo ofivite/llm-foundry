@@ -88,11 +88,15 @@ def generic_param_init_fn_(
         )
 
     if isinstance(module, tuple(set(FC_CLASS_REGISTRY.values()))):
-        # Linear
-        if hasattr(module, '_fused'):
+        # Unembedding layer in case of no tying
+        if hasattr(module, '_is_unembedding'):
+            torch.nn.init.zeros_(module.weight) # init to 0 to remove 1/sqrt(d_model) scaling, see https://github.com/microsoft/mup/issues?tab=readme-ov-file#making-your-own-coord-check-plots
+            # init_fn_ = partial(torch.nn.init.normal_, mean=0.0, std=emb_init_std)
+        elif hasattr(module, '_fused'):
             fused_init_helper_(module, init_fn_)
         else:
             init_fn_(module.weight)
+
         if module.bias is not None:
             assert isinstance(module.bias, torch.Tensor)
             torch.nn.init.zeros_(module.bias)

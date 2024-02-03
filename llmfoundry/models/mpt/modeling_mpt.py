@@ -774,6 +774,7 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 device=config.init_device,
             )
             self.lm_head._fsdp_wrap = True
+            self.lm_head._is_unembedding = True
 
         for child in self.transformer.children():
             if isinstance(child, torch.nn.ModuleList):
