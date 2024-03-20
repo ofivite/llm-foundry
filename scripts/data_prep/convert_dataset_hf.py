@@ -192,7 +192,29 @@ c4constants.splits['val_xxsmall'] = DataSplitConstants(
     raw_samples=100,
     truncated_samples=100)
 
-CONSTS = {'c4': c4constants, 'the_pile': pileconstants}
+
+wikitext103constants = DatasetConstants(
+    chars_per_sample=2163,  # copied from c4
+    chars_per_token=4  # # copied from c4
+)
+wikitext103constants.splits['train'] = DataSplitConstants(hf_split='train',
+                                                 folder_split='train',
+                                                 raw_samples=1801350,
+                                                 truncated_samples=None)
+wikitext103constants.splits['train_small'] = DataSplitConstants(hf_split='train',
+                                                       folder_split='train_small',
+                                                       raw_samples=1801350,
+                                                       truncated_samples=1e5)
+wikitext103constants.splits['test'] = DataSplitConstants(hf_split='test',
+                                               folder_split='test',
+                                               raw_samples=4358,
+                                               truncated_samples=None)
+wikitext103constants.splits['val'] = DataSplitConstants(hf_split='validation',
+                                               folder_split='val',
+                                               raw_samples=3760,
+                                               truncated_samples=None)
+
+CONSTS = {'c4': c4constants, 'the_pile': pileconstants, 'wikitext': wikitext103constants}
 
 
 def build_hf_dataset(
