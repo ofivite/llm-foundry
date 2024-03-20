@@ -10,6 +10,7 @@ import warnings
 from typing import Any, Dict, List, Optional, Union
 
 import torch
+import torch.nn as nn
 from composer import Trainer
 from composer.core.callback import Callback
 from composer.loggers import MosaicMLLogger
@@ -542,12 +543,18 @@ def main(cfg: DictConfig) -> Trainer:
         elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
             model = model.to(dtype=torch.float16)
 
-    # disable bias gradients  
-    if model_config.get('disable_bias_gradients', True):
-        for name, param in model.named_parameters():
-            if 'bias' in name:
-                param.requires_grad = False
-            
+    # Disable biases 
+    if model_config.get('disable_biases', True): 
+        for module in model.modules():
+            if hasattr(module, 'bias') and isinstance(module.bias, nn.Parameter):
+                log.info(f'Removing bias from {module=}.')
+                module.register_parameter('bias', None)
+
+            # For transformer engine
+            if hasattr(module, 'use_bias'):
+                log.info(f'Setting use_bias=False for {module=}.')
+                module.use_bias = False
+
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
     n_trainable_params = sum(
