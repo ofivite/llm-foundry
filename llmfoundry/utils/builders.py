@@ -22,6 +22,7 @@ from composer.loggers import (InMemoryLogger, LoggerDestination, MLFlowLogger,
                               TensorboardLogger, WandBLogger)
 from composer.optim import DecoupledAdamW
 from composer.optim.scheduler import (ComposerScheduler,
+                                      ConstantScheduler,
                                       ConstantWithWarmupScheduler,
                                       CosineAnnealingWithWarmupScheduler,
                                       LinearWithWarmupScheduler)
@@ -384,7 +385,9 @@ def build_optimizer(model: torch.nn.Module, name: str,
 
 def build_scheduler(name: str,
                     scheduler_config: Dict[str, Any]) -> ComposerScheduler:
-    if name == 'constant_with_warmup':
+    if name == 'constant':
+        return ConstantScheduler(**scheduler_config)
+    elif name == 'constant_with_warmup':
         return ConstantWithWarmupScheduler(**scheduler_config)
     elif name == 'cosine_with_warmup':
         return CosineAnnealingWithWarmupScheduler(**scheduler_config)
