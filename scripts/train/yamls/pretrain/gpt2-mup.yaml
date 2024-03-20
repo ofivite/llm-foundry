@@ -1,0 +1,176 @@
+data_local: ???
+data_remote: # If blank, files must be present in data_local
+max_seq_len: 1024
+
+global_seed: ??? # 7
+
+# Run Name
+run_name: # set in train.py
+experiment_name:
+
+# Model
+model:
+  name: hf_causal_lm
+  pretrained_model_name_or_path: gpt2
+  init_device: meta
+  pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
+  use_flash_attention_2: true
+  disable_bias_gradients: False
+  config_overrides:
+    # WARNING: if setting `pretrained: true`, `max_position_embeddings` must match the
+    # `max_position_embeddings` used during pre-training
+    n_positions: ${max_seq_len} # default: 1024
+    vocab_size: 50257 # default: 50257
+    n_embd: ??? # default: 768
+    n_inner: ??? # default: 3072
+    n_layer: ??? # default: 12
+    n_head: ??? # default: 12
+    activation_function: relu # default: gelu_new
+    resid_pdrop: 0. # default 0.1
+    embd_pdrop: 0. # default 0.1
+    attn_pdrop: 0. # default 0.1
+    attn_mult: ${eval:'(${model._mup_config.d_heads_base} / ${model._mup_config.d_heads})**0.5'} # scale_attn_weights should be set to true to be applied
+    logit_scale: ${eval:'1 / ${model._mup_config.d_model_ratio}'}
+    tie_word_embeddings: true
+    learnable_layer_norm: false
+    layer_norm_epsilon: 1e-5 # pytorch default is 1e-5
+    scale_attn_weights: true # default: true
+    use_cache: false # default: true
+    bos_token_id: 50256 # default: 50256
+    eos_token_id: 50256 # default: 50256
+    scale_attn_by_inverse_layer_idx: false # default: false  
+    reorder_and_upcast_attn: false # default: false
+    init_output_to_zero: false
+    init_std: ${eval:'${model._mup_config._init_std} / ${.n_embd}**0.5'} # NB: we can do muP scaling like this only in tied case, when Linear layers = matrix-like params
+    emb_init_std: ${eval:'${model._mup_config._init_std} / ${model._mup_config.d_model_base}**0.5'}
+  _mup_config:
+    _init_std: ??? # HP value to be tuned
+    d_model_base: ???
+    n_heads_base: ???
+    d_heads_base: ${eval:'${.d_model_base} / ${.n_heads_base}'}
+    d_heads: ${eval:'${model.config_overrides.n_embd} / ${model.config_overrides.n_head}'} 
+    d_model_ratio: ${eval:'${model.config_overrides.n_embd} / ${.d_model_base}'} 
+    matrix_like_params:
+      # - param_str_match: attn.q_attn.weight # in case of cross attention
+      #   lr: ${eval:'${optimizer.lr} / ${model._mup_config.d_model_ratio}'}
+      - param_str_match: attn.c_attn.weight
+        lr: ${eval:'${optimizer.lr} / ${model._mup_config.d_model_ratio}'}
+      - param_str_match: attn.c_proj.weight
+        lr: ${eval:'${optimizer.lr} / ${model._mup_config.d_model_ratio}'}
+      - param_str_match: mlp.c_fc.weight
+        lr: ${eval:'${optimizer.lr} / ${model._mup_config.d_model_ratio}'}
+      - param_str_match: mlp.c_proj.weight
+        lr: ${eval:'${optimizer.lr} / ${model._mup_config.d_model_ratio}'}
+
+# Tokenizer
+tokenizer:
+  name: gpt2 # EleutherAI/gpt-neox-20b
+  kwargs:
+    model_max_length: ${max_seq_len}
+
+# Dataloaders
+train_loader:
+  name: text
+  dataset:
+    local: ${data_local}
+    remote: ${data_remote}
+    split: train
+    shuffle: true
+    max_seq_len: ${max_seq_len}
+    shuffle_seed: ${global_seed}
+  drop_last: true
+  num_workers: 8
+
+eval_loader:
+  name: text
+  dataset:
+    local: ${data_local}
+    remote: ${data_remote}
+    split: val
+    shuffle: false
+    max_seq_len: ${max_seq_len}
+    shuffle_seed: ${global_seed}
+  drop_last: false
+  num_workers: 8
+
+# Optimization
+scheduler:
+  name: constant
+  alpha: 1.0
+  t_max: 1dur
+  # t_warmup: 10ba # 10_000_000tok
+  # alpha_i: 1.0 #### default
+  # alpha_f: 0.0 #### default
+  # scale_warmup: false #### default
+
+optimizer:
+  name: decoupled_adamw
+  lr: ???
+  betas:
+  - 0.9
+  - 0.95
+  eps: 1.0e-08
+  weight_decay: 0.0
+  param_groups: ${model._mup_config.matrix_like_params}
+
+algorithms:
+  gradient_clipping:
+    clipping_type: norm
+    clipping_threshold: 1.0
+
+max_duration: 1ep # 100_000_000_000_000tok # 4800ba # ~ 2.5B tokens
+eval_interval: 1ba # 500ba
+eval_first: false
+eval_subset_num_batches: -1
+global_train_batch_size: ???
+
+# System
+seed: ${global_seed}
+device_eval_batch_size: ???
+device_train_microbatch_size: ???
+# device_train_microbatch_size: auto
+precision: amp_bf16
+
+# FSDP
+fsdp_config:
+  sharding_strategy: FULL_SHARD
+  mixed_precision: PURE
+  activation_checkpointing: false
+  activation_checkpointing_reentrant: false
+  activation_cpu_offload: false
+  limit_all_gathers: true
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 1ba
+
+callbacks:
+  # speed_monitor:
+  #   window_size: 10
+  lr_monitor: {}
+  # memory_monitor: {}
+  # runtime_estimator: {}
+  # optimizer_monitor:
+  #   batch_log_interval: 100
+  # mup_monitor:
+  #   batch_log_interval: 1
+  # activation_monitor:
+  #   interval: 1ba
+  #   only_log_wandb: false
+
+loggers:
+  mlflow:
+    experiment_name: ${experiment_name}
+    run_name: ${run_name}
+
+# Checkpoint to local filesystem or remote object store
+save_interval: 1ep
+save_overwrite: true
+# save_num_checkpoints_to_keep: 1
+save_folder: ./${experiment_name}/{run_name}/checkpoints
+# save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
+
+# Load from local filesystem or remote object store
+# load_path: ./gpt-125m/checkpoints/latest-rank{rank}.pt
+# load_path: s3://my-bucket/my-folder/gpt-125m/checkpoints/latest-rank{rank}.pt
