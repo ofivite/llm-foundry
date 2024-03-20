@@ -542,6 +542,12 @@ def main(cfg: DictConfig) -> Trainer:
         elif model_config.get('master_weights_dtype') in ('f16', 'float16'):
             model = model.to(dtype=torch.float16)
 
+    # disable bias gradients  
+    if model_config.get('disable_bias_gradients', True):
+        for name, param in model.named_parameters():
+            if 'bias' in name:
+                param.requires_grad = False
+            
     # Log number of parameters
     n_params = sum(p.numel() for p in model.parameters())
     n_trainable_params = sum(
