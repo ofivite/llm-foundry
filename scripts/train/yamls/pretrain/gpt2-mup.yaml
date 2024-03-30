@@ -15,7 +15,7 @@ model:
   init_device: meta
   pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
   use_flash_attention_2: true
-  disable_biases: False
+  disable_biases: false
   config_overrides:
     # WARNING: if setting `pretrained: true`, `max_position_embeddings` must match the
     # `max_position_embeddings` used during pre-training
@@ -95,13 +95,14 @@ eval_loader:
 
 # Optimization
 scheduler:
-  name: constant
-  alpha: 1.0
-  t_max: 1dur
-  # t_warmup: 10ba # 10_000_000tok
-  # alpha_i: 1.0 #### default
-  # alpha_f: 0.0 #### default
-  # scale_warmup: false #### default
+  name: linear_decay_with_warmup
+  t_warmup: ??? # 10_000_000tok
+  alpha_i: 1.0 #### default
+  alpha_f: 0.0 #### default
+  scale_warmup: false #### default
+  # name: constant
+  # alpha: 1.0
+  # t_max: 1dur
 
 optimizer:
   name: decoupled_adamw
@@ -118,8 +119,8 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 1ep # 100_000_000_000_000tok # 4800ba # ~ 2.5B tokens
-eval_interval: 1ba # 500ba
+max_duration: ??? # 100_000_000_000_000tok # 4800ba # ~ 2.5B tokens
+eval_interval: 1dur # 500ba
 eval_first: false
 eval_subset_num_batches: -1
 global_train_batch_size: ???

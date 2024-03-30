@@ -41,6 +41,7 @@ def parse_args() -> Namespace:
         '--splits',
         nargs='+',
         default=['train', 'train_small', 'val', 'val_small', 'val_xsmall'])
+    parser.add_argument('--cache', type=str, required=False, default=None)
     parser.add_argument('--out_root', type=str, required=True)
     parser.add_argument('--compression', type=str, default=None)
 
@@ -214,12 +215,13 @@ wikitext103constants.splits['val'] = DataSplitConstants(hf_split='validation',
                                                raw_samples=3760,
                                                truncated_samples=None)
 
-CONSTS = {'c4': c4constants, 'the_pile': pileconstants, 'wikitext': wikitext103constants}
+CONSTS = {'allenai/c4': c4constants, 'the_pile': pileconstants, 'wikitext': wikitext103constants}
 
 
 def build_hf_dataset(
     dataset_name: str,
     split: str,
+    cache: str,
     mode: ConcatMode,
     max_length: Optional[int] = None,
     bos_text: str = '',
@@ -233,6 +235,7 @@ def build_hf_dataset(
     Args:
         dataset_name (str): Dataset name
         split (str): Split name.
+        cache (str): Cache directory.
         mode (ConcatMode): NO_CONCAT, or CONCAT_TOKENS
         max_length (int): The length of concatenated tokens
         bos_text (str): text to insert at the beginning of each sequence
@@ -248,6 +251,7 @@ def build_hf_dataset(
     hf_dataset = hf_datasets.load_dataset(path=dataset_name,
                                           name=data_subset,
                                           split=split,
+                                          cache=cache,
                                           streaming=True)
     if mode == ConcatMode.NO_CONCAT:
         dataset = NoConcatDataset(hf_dataset)
@@ -377,6 +381,7 @@ def main(args: Namespace) -> None:
         dataset = build_hf_dataset(dataset_name=args.dataset,
                                    data_subset=args.data_subset,
                                    split=hf_split,
+                                   cache=args.cache,
                                    mode=mode,
                                    max_length=args.concat_tokens,
                                    bos_text=args.bos_text,
