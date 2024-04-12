@@ -14,7 +14,7 @@ model:
   pretrained_model_name_or_path: gpt2
   init_device: meta
   pretrained: false  # false: only use the architecture; true: initialize with pretrained weights
-  use_flash_attention_2: true
+  # use_flash_attention_2: true
   disable_biases: false
   config_overrides:
     # WARNING: if setting `pretrained: true`, `max_position_embeddings` must match the
