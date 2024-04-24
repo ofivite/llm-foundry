@@ -95,12 +95,15 @@ eval_loader:
 
 # Optimization
 scheduler:
-  name: linear_decay_with_warmup
-  t_warmup: ??? # 10_000_000tok
-  alpha_i: 1.0 #### default
-  alpha_f: 0.0 #### default
-  scale_warmup: false #### default
-  # name: constant_with_warmup # constant
+  name: ???
+  t_warmup: ???
+  
+  ### linear_decay_with_warmup defaults:
+  # alpha_i: 1.0 #### default
+  # alpha_f: 0.0 #### default
+  # scale_warmup: false #### default
+
+  ### constant_with_warmup defaults:
   # alpha: 1.0
   # t_max: 1dur
 
@@ -130,7 +133,10 @@ seed: ${global_seed}
 device_eval_batch_size: ???
 device_train_microbatch_size: ???
 # device_train_microbatch_size: auto
-precision: amp_bf16
+precision: ??? # amp_bf16 / amp_fp16
+
+# # torch compile
+# compile_config: {}
 
 # FSDP
 fsdp_config:
@@ -170,6 +176,7 @@ save_interval: ???
 save_overwrite: ???
 save_num_checkpoints_to_keep: ???
 save_folder: ???
+save_weights_only: false
 
 # Load from local filesystem or remote object store
 load_path: ???
