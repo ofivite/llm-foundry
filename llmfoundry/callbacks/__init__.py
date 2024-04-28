@@ -4,7 +4,7 @@
 from composer.callbacks import (EarlyStopper, Generate, LRMonitor,
                                 MemoryMonitor, MemorySnapshot, OOMObserver,
                                 OptimizerMonitor, RuntimeEstimator,
-                                SpeedMonitor, ActivationMonitor)
+                                SpeedMonitor, ActivationMonitor, MupMonitor)
 
 from llmfoundry.callbacks.async_eval_callback import AsyncEval
 from llmfoundry.callbacks.curriculum_learning_callback import CurriculumLearning
@@ -20,6 +20,7 @@ from llmfoundry.registry import callbacks, callbacks_with_config
 
 callbacks.register('lr_monitor', func=LRMonitor)
 callbacks.register('activation_monitor', func=ActivationMonitor)
+callbacks.register('mup_monitor', func=MupMonitor)
 callbacks.register('memory_monitor', func=MemoryMonitor)
 callbacks.register('memory_snapshot', func=MemorySnapshot)
 callbacks.register('speed_monitor', func=SpeedMonitor)
