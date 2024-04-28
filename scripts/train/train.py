@@ -600,6 +600,9 @@ def main(cfg: DictConfig) -> Trainer:
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]
 
+    # Register custom omegaconf resolvers.
+    om.register_new_resolver("eval", eval)
+
     # Disable resolving environment variables through omegaconf.
     om.clear_resolver('oc.env')
 
@@ -608,6 +611,24 @@ if __name__ == '__main__':
         yaml_cfg = om.load(f)
     cli_cfg = om.from_cli(args_list)
     cfg = om.merge(yaml_cfg, cli_cfg)
+
+    array_id = os.getenv('SLURM_ARRAY_TASK_ID', '')
+    assert array_id
+    array_id = int(array_id)
+    print(f'SLURM_ARRAY_TASK_ID = {array_id}')
+
+    # LR_VALS = [0.00024414, 0.00048828, 0.00097656, 0.00195312, 0.00390625,
+    #             0.0078125 , 0.015625  , 0.03125   , 0.0625    ]  # np.logspace(-12, -4, 9, base=2)
+
+    LR_VALS = [0.00048828, 0.00069053, 0.00097656, 0.00138107, 0.00195312,
+                0.00276214, 0.00390625, 0.00552427, 0.0078125, # np.logspace(-11, -7, 9, base=2)
+                 0.00024414, 0.00034527,  # np.logspace(-12, -11.5, 2, base=2)
+                 ]  
+    assert array_id < len(LR_VALS)
+    cfg.optimizer.lr = LR_VALS[array_id]
+    cfg.model.init_config._init_std = 1.
+    cfg.run_name = f'lr-{array_id}-bs-{cfg.global_train_batch_size}-warmup-{cfg.scheduler.t_warmup}-dur-{cfg.max_duration}-job-{os.getenv("SLURM_JOB_ID", 0)}' # -job-{os.getenv("SLURM_JOB_ID", 0)}
+
     om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)

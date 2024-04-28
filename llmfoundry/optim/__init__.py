@@ -1,7 +1,7 @@
 # Copyright 2022 MosaicML LLM Foundry authors
 # SPDX-License-Identifier: Apache-2.0
 
-from composer.optim import (ConstantWithWarmupScheduler,
+from composer.optim import (ConstantScheduler, ConstantWithWarmupScheduler,
                             CosineAnnealingWithWarmupScheduler, DecoupledAdamW,
                             LinearWithWarmupScheduler)
 
@@ -15,6 +15,7 @@ optimizers.register('clip_lion', func=DecoupledClipLion)
 optimizers.register('decoupled_lionw', func=DecoupledLionW)
 optimizers.register('decoupled_adamw', func=DecoupledAdamW)
 
+schedulers.register('constant', func=ConstantScheduler)
 schedulers.register('constant_with_warmup', func=ConstantWithWarmupScheduler)
 schedulers.register('cosine_with_warmup',
                     func=CosineAnnealingWithWarmupScheduler)
