@@ -171,4 +171,13 @@ def log_config(cfg: DictConfig) -> None:
         except ImportError as e:
             raise e
         if mlflow.active_run():
-            mlflow.log_params(params=om.to_container(cfg, resolve=True))
+            import fnmatch
+            log_cfg = om.to_container(cfg, resolve=True)
+            ignore_hyperparameters = log_cfg['loggers']['mlflow']['ignore_hyperparameters']
+            ignore_hyperparameters = [] if ignore_hyperparameters is None else ignore_hyperparameters
+            hyperparameters = {
+                k: v
+                for k, v in log_cfg.items()
+                if not any(fnmatch.fnmatch(k, pattern) for pattern in ignore_hyperparameters)
+            }
+            mlflow.log_params(params=hyperparameters)

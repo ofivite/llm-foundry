@@ -163,6 +163,7 @@ loggers:
   mlflow:
     experiment_name: ${experiment_name}
     run_name: ${run_name}
+    ignore_hyperparameters: ['load_path']
   wandb:
     entity: ???
     project: ???
