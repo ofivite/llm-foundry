@@ -163,7 +163,7 @@ loggers:
   mlflow:
     experiment_name: ${experiment_name}
     run_name: ${run_name}
-    ignore_hyperparameters: ['load_path'] # 'load_path', 'loggers', 'max_duration'
+    ignore_hyperparameters: ['load_path'] # 'load_path', 'loggers', 'max_duration', 'n_gpus', 'num_nodes', 'device_train_grad_accum', 'device_train_batch_size'
   wandb:
     entity: ???
     project: ???

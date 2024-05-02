@@ -173,7 +173,7 @@ def log_config(cfg: DictConfig) -> None:
         if mlflow.active_run():
             import fnmatch
             log_cfg = om.to_container(cfg, resolve=True)
-            ignore_hyperparameters = log_cfg['loggers']['mlflow']['ignore_hyperparameters']
+            ignore_hyperparameters = log_cfg['loggers']['mlflow'].get('ignore_hyperparameters', None)
             ignore_hyperparameters = [] if ignore_hyperparameters is None else ignore_hyperparameters
             hyperparameters = {
                 k: v
