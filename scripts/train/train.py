@@ -627,7 +627,6 @@ if __name__ == '__main__':
     assert array_id < len(LR_VALS)
     cfg.optimizer.lr = LR_VALS[array_id]
     cfg.model.init_config._init_std = 1.
-    cfg.run_name = f'lr-{array_id}-bs-{cfg.global_train_batch_size}-warmup-{cfg.scheduler.t_warmup}-dur-{cfg.max_duration}-job-{os.getenv("SLURM_JOB_ID", 0)}' # -job-{os.getenv("SLURM_JOB_ID", 0)}
 
     om.resolve(cfg)
     assert isinstance(cfg, DictConfig)

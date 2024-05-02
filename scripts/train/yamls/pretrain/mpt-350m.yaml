@@ -3,9 +3,9 @@ data_remote:  # If blank, files must be present in data_local
 max_seq_len: 1024
 global_seed: ???
 
-# Run Name
-run_name: # set in train.py
-experiment_name:
+# Experiment/Run Name
+experiment_name: ???
+run_name: ???
 
 # Model
 model:
@@ -104,6 +104,7 @@ eval_loader:
 scheduler:
   name: ???
   t_warmup: ???
+  # alpha_f: ???
 
 optimizer:
   name: decoupled_adamw
@@ -160,13 +161,14 @@ callbacks:
 
 loggers:
   mlflow:
-    experiment_name: ???
-    run_name: ???
-  memory_monitor: {}
-  runtime_estimator: {}
-
-# loggers:
-#   wandb: {}
+    experiment_name: ${experiment_name}
+    run_name: ${run_name}
+  wandb:
+    entity: ???
+    project: ???
+    name: ${run_name}
+    tags:
+    - ${experiment_name}
 
 # Checkpoint to local filesystem or remote object store
 save_interval: ???
