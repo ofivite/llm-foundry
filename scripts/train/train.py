@@ -591,7 +591,8 @@ def main(cfg: DictConfig) -> Trainer:
         trainer.eval()
 
     log.info('Starting training...')
-    trainer.fit()
+    reset_time = cfg.get('reset_time', False)
+    trainer.fit(reset_time=reset_time)
 
     log.info('Done.')
     return trainer

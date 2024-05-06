@@ -121,6 +121,7 @@ algorithms:
     clipping_type: norm
     clipping_threshold: 1.0
 
+reset_time: ???
 max_duration: ???  # ~ 7B tokens
 eval_interval: ???
 eval_first: false
@@ -163,7 +164,7 @@ loggers:
   mlflow:
     experiment_name: ${experiment_name}
     run_name: ${run_name}
-    ignore_hyperparameters: ['load_path'] # 'load_path', 'loggers', 'max_duration', 'n_gpus', 'num_nodes', 'device_train_grad_accum', 'device_train_batch_size'
+    ignore_hyperparameters: ['load_path'] # 'load_path', 'loggers', 'max_duration', 'n_gpus', 'num_nodes', 'device_train_grad_accum', 'device_train_batch_size', 'save_interval',  'save_folder'
   wandb:
     entity: ???
     project: ???
