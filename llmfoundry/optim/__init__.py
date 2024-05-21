@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from composer.optim import (ConstantScheduler, ConstantWithWarmupScheduler,
-                            CosineAnnealingWithWarmupScheduler, DecoupledAdamW,
+                            CosineAnnealingWithWarmupScheduler, DecoupledAdamW, DecoupledSGDW,
                             LinearWithWarmupScheduler)
 
 from llmfoundry.optim.adaptive_lion import DecoupledAdaLRLion, DecoupledClipLion
@@ -14,6 +14,7 @@ optimizers.register('adalr_lion', func=DecoupledAdaLRLion)
 optimizers.register('clip_lion', func=DecoupledClipLion)
 optimizers.register('decoupled_lionw', func=DecoupledLionW)
 optimizers.register('decoupled_adamw', func=DecoupledAdamW)
+optimizers.register('decoupled_sgdw', func=DecoupledSGDW)
 
 schedulers.register('constant', func=ConstantScheduler)
 schedulers.register('constant_with_warmup', func=ConstantWithWarmupScheduler)

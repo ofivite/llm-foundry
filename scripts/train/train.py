@@ -629,6 +629,19 @@ if __name__ == '__main__':
     cfg.optimizer.lr = LR_VALS[array_id]
     cfg.model.init_config._init_std = 1.
 
+    # Set additional optimizer parameters
+    if cfg.optimizer.name == 'decoupled_adamw':
+        cfg.optimizer.betas = [0.9, 0.95]
+        cfg.optimizer.eps = 1.0e-08
+    elif cfg.optimizer.name == 'decoupled_sgdw':
+        cfg.optimizer.momentum = 0
+        cfg.optimizer.dampening = 0
+        cfg.optimizer.nesterov = False
+    elif cfg.optimizer.name == 'decoupled_lionw':
+        cfg.optimizer.betas = [0.9, 0.99]
+    else:
+        raise ValueError(f'Unknown optimizer: {cfg.optimizer.name}')
+
     om.resolve(cfg)
     assert isinstance(cfg, DictConfig)
     main(cfg)
