@@ -136,7 +136,7 @@ precision: ???
 
 # FSDP
 fsdp_config:
-  sharding_strategy: FULL_SHARD
+  sharding_strategy: ???
   mixed_precision: PURE
   activation_checkpointing: false
   activation_checkpointing_reentrant: false
