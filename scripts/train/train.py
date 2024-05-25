@@ -625,6 +625,19 @@ if __name__ == '__main__':
                 0.00276214, 0.00390625, 0.00552427, 0.0078125, # np.logspace(-11, -7, 9, base=2)
                  0.00024414, 0.00034527,  # np.logspace(-12, -11.5, 2, base=2)
                  ]  
+
+    # LR_VALS = [1.52587891e-05, 2.15791864e-05, 3.05175781e-05, 4.31583729e-05,
+    #             6.10351562e-05, 8.63167458e-05, 1.22070312e-04, 1.72633492e-04,
+    #             2.44140625e-04, 3.45266983e-04, 4.88281250e-04, 6.90533966e-04,
+    #             9.76562500e-04, 1.38106793e-03, 1.95312500e-03, 2.76213586e-03,
+    #             3.90625000e-03, 5.52427173e-03, 7.81250000e-03, 1.10485435e-02,
+    #             1.56250000e-02, 2.20970869e-02, 3.12500000e-02, 4.41941738e-02,
+    #             6.25000000e-02, 8.83883476e-02, 1.25000000e-01, 1.76776695e-01,
+    #             2.50000000e-01, 3.53553391e-01, 5.00000000e-01, 7.07106781e-01,
+    #             1.00000000e+00, 1.41421356e+00, 2.00000000e+00,  # np.logspace(-16, 1, 35, base=2)
+    #             2.82842712e+00, 4.00000000e+00, 5.65685425e+00, 8.00000000e+00, # np.logspace(1.5, 3, 4, base=2)
+    #         ]
+
     assert array_id < len(LR_VALS)
     cfg.optimizer.lr = LR_VALS[array_id]
     cfg.model.init_config._init_std = 1.
@@ -634,7 +647,7 @@ if __name__ == '__main__':
         cfg.optimizer.betas = [0.9, 0.95]
         cfg.optimizer.eps = 1.0e-08
     elif cfg.optimizer.name == 'decoupled_sgdw':
-        cfg.optimizer.momentum = 0
+        cfg.optimizer.momentum = 0 # 0.9
         cfg.optimizer.dampening = 0
         cfg.optimizer.nesterov = False
     elif cfg.optimizer.name == 'decoupled_lionw':
