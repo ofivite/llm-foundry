@@ -30,7 +30,7 @@ model:
       name: gelu
       approximate: 'none'
   attn_config:
-    attn_impl: flash
+    attn_impl: ???
     attn_pdrop: 0.0
     softmax_scale: ${eval:'(${model._mup_config.d_heads_base})**0.5 / ${model._mup_config.d_heads}'}
     qk_ln: false
