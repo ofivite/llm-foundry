@@ -167,7 +167,7 @@ def fc_init(
 ) -> bool:
     del kwargs  # unused, just to capture any extra args
 
-    if isinstance(module, tuple({fcs.get(n) for n in fcs.get_all()})) and not hasattr(module, '_is_unembedding'):
+    if isinstance(module, tuple({fcs.get(n) for n in fcs.get_all()})) and not getattr(module, '_is_unembedding', False):
         # Linear
         if hasattr(module, '_fused'):
             fused_init_helper_(module, init_fn_)
@@ -228,7 +228,7 @@ def embedding_init(
 
         return True
 
-    elif isinstance(module, nn.Linear) and hasattr(module, '_is_unembedding'):
+    elif isinstance(module, nn.Linear) and getattr(module, '_is_unembedding', False):
         if unemb_init_std is not None:
             std = unemb_init_std
             if std == 0:
