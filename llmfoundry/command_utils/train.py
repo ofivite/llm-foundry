@@ -596,6 +596,9 @@ def train_from_yaml(
     """Run the training with optional overrides from CLI."""
     # Load yaml and CLI arguments.
     om.clear_resolver('oc.env')
+    # Register custom omegaconf resolvers.
+    om.register_new_resolver("eval", eval)
+
     with open(yaml_path) as f:
         yaml_cfg = om.load(f)
     if args_list:
