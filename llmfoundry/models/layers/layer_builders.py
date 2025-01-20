@@ -27,11 +27,13 @@ def build_norm(
     name: str,
     normalized_shape: Union[int, list[int], torch.Size],
     eps: Optional[float] = 1e-5,
+    weight: Optional[bool] = False,
     device: Optional[str] = None,
 ):
     kwargs = {
         'normalized_shape': normalized_shape,
         'eps': eps,
+        'weight': weight,
         'device': device,
     }
 

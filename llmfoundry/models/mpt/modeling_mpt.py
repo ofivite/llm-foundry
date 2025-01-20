@@ -429,6 +429,7 @@ class MPTModel(MPTPreTrainedModel):
             name=config.norm_type.lower(),
             normalized_shape=config.d_model,
             eps=config.norm_eps,
+            weight=config.norm_weight,
             device=config.init_device,
         )
 

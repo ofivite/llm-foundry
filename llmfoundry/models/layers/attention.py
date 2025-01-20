@@ -454,6 +454,7 @@ class GroupedQueryAttention(nn.Module):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         norm_eps: float = 1e-05,
+        norm_weight: bool = False,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
@@ -564,6 +565,7 @@ class GroupedQueryAttention(nn.Module):
                 name=norm_type.lower(),
                 normalized_shape=norm_size,
                 eps=norm_eps,
+                weight=norm_weight,
                 device=device,
             )
             if self.reuse_kv_layer_idx is None:
@@ -573,6 +575,7 @@ class GroupedQueryAttention(nn.Module):
                     name=norm_type.lower(),
                     normalized_shape=norm_size,
                     eps=norm_eps,
+                    weight=norm_weight,
                     device=device,
                 )
 
@@ -862,6 +865,7 @@ class MultiheadAttention(GroupedQueryAttention):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         norm_eps: float = 1e-05,
+        norm_weight: bool = False,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
@@ -883,6 +887,7 @@ class MultiheadAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             norm_eps=norm_eps,
+            norm_weight=norm_weight,
             fc_type=fc_type,
             device=device,
             bias=bias,
@@ -913,6 +918,7 @@ class MultiQueryAttention(GroupedQueryAttention):
         attn_pdrop: float = 0.0,
         norm_type: str = 'low_precision_layernorm',
         norm_eps: float = 1e-05,
+        norm_weight: bool = False,
         fc_type: Optional[dict[str, Any]] = None,
         device: Optional[str] = None,
         bias: bool = True,
@@ -934,6 +940,7 @@ class MultiQueryAttention(GroupedQueryAttention):
             attn_pdrop=attn_pdrop,
             norm_type=norm_type,
             norm_eps=norm_eps,
+            norm_weight=norm_weight,
             fc_type=fc_type,
             device=device,
             bias=bias,
