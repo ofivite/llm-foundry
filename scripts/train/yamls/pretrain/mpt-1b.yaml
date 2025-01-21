@@ -1,8 +1,42 @@
 variables:
-  data_local: ./my-copy-c4
+  data_local: ???
   data_remote:  # If blank, files must be present in data_local
-  max_seq_len: 2048
-  global_seed: 17
+  max_seq_len: ???
+  global_seed: ???
+  train_num_workers: ???
+  eval_num_workers: ???
+  embedding_lr: ???
+  embedding_momentum: ???
+  embedding_nesterov: ???
+  mup_config: 
+    d_model_base: ???
+    n_heads_base: ???
+    d_heads_base: ${eval:'${.d_model_base} / ${.n_heads_base}'}
+    d_heads: ${eval:'${model.d_model} / ${model.n_heads}'}
+    d_model_ratio: ${eval:'${model.d_model} / ${.d_model_base}'} 
+    eps_base: ???
+    init_std_base: ???
+    # param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
+    #   - param_str_match: attn.Wqkv.weight
+    #     lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
+    #     eps: ${eval:'${variables.mup_config.eps_base} / ${variables.mup_config.d_model_ratio}'}
+    #     weight_decay: ${eval:'${optimizer.weight_decay} * ${variables.mup_config.d_model_ratio} if "decoupled" not in "${optimizer.name}" else ${optimizer.weight_decay}'}
+    #   - param_str_match: attn.out_proj.weight
+    #     lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
+    #     eps: ${eval:'${variables.mup_config.eps_base} / ${variables.mup_config.d_model_ratio}'}
+    #     weight_decay: ${eval:'${optimizer.weight_decay} * ${variables.mup_config.d_model_ratio} if "decoupled" not in "${optimizer.name}" else ${optimizer.weight_decay}'}
+    #   - param_str_match: ffn.up_proj.weight
+    #     lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
+    #     eps: ${eval:'${variables.mup_config.eps_base} / ${variables.mup_config.d_model_ratio}'}
+    #     weight_decay: ${eval:'${optimizer.weight_decay} * ${variables.mup_config.d_model_ratio} if "decoupled" not in "${optimizer.name}" else ${optimizer.weight_decay}'}
+    #   - param_str_match: ffn.down_proj.weight
+    #     lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
+    #     eps: ${eval:'${variables.mup_config.eps_base} / ${variables.mup_config.d_model_ratio}'}
+    #     weight_decay: ${eval:'${optimizer.weight_decay} * ${variables.mup_config.d_model_ratio} if "decoupled" not in "${optimizer.name}" else ${optimizer.weight_decay}'}
+    #   - param_str_match: ffn.gate_proj.weight
+    #     lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
+    #     eps: ${eval:'${variables.mup_config.eps_base} / ${variables.mup_config.d_model_ratio}'}
+    #     weight_decay: ${eval:'${optimizer.weight_decay} * ${variables.mup_config.d_model_ratio} if "decoupled" not in "${optimizer.name}" else ${optimizer.weight_decay}'}
 
   # Run Name
   run_name:  # If left blank, will be read from env var $RUN_NAME
@@ -14,87 +48,194 @@ run_name: ${variables.run_name}
 model:
   name: mpt_causal_lm
   init_device: meta
-  d_model: 2048
-  n_heads: 16  # Modified 24->16 so that d_head == 128 to satisfy FlashAttention
-  n_layers: 24
-  expansion_ratio: 4
+  d_model: ???
+  n_heads: ???
+  n_layers: ???
+  expansion_ratio: ???
   max_seq_len: ${variables.max_seq_len}
-  vocab_size: 50368
+  learned_pos_emb: false
+  vocab_size: ???
+  resid_pdrop: 0.0
+  emb_pdrop: 0.0
+  embedding_fraction: 1.0
+  tie_word_embeddings: false
+  no_bias: true
+  norm_type: rmsnorm
+  norm_eps: 1e-5
+  norm_weight: false # only valid for norm_type={rmsnorm, low_precision_rmsnorm}
+  logit_scale: ${eval:'1 / ${variables.mup_config.d_model_ratio}'}
+  fc_type: torch
+  ffn_config:
+    ffn_type: mptglu
+    ffn_act_fn: 
+      name: silu
   attn_config:
+    attn_type: grouped_query_attention
     attn_impl: flash
+    attn_pdrop: 0.0
+    kv_n_heads: ???
+    softmax_scale: ${eval:'(${variables.mup_config.d_heads_base})**0.5 / ${variables.mup_config.d_heads}'}
+    qk_ln: false
+    qk_gn: false
+    fused_qkv: true
+    clip_qkv: null
+    attn_uses_sequence_id: false
+    sliding_window_size: -1
+    alibi: false
+    rope: true
+    rope_theta: 500000
+    rope_impl: hf
+    rope_hf_config:
+      type: no_scaling
+      factor: 1.0
+  init_config:
+    name: baseline_
+    init_std: ${eval:'${variables.mup_config.init_std_base} / ${variables.mup_config.d_model_ratio}**0.5'} # NB: make sure all the layers which receive this std are matrix like!
+    init_div_is_residual: True # True: 1 / math.sqrt(2 * cfg.n_layers)
+    emb_init_std: ${variables.mup_config.init_std_base}
+    unemb_init_std: ${variables.mup_config.init_std_base}
 
 # Tokenizer
 tokenizer:
-  name: EleutherAI/gpt-neox-20b
+  name: ???
   kwargs:
     model_max_length: ${variables.max_seq_len}
+    use_fast: False
 
 # Dataloaders
 train_loader:
   name: text
   dataset:
-    local: ${variables.data_local}
-    remote: ${variables.data_remote}
+    local:
+    remote:
     split: train
     shuffle: true
     max_seq_len: ${variables.max_seq_len}
     shuffle_seed: ${variables.global_seed}
+    epoch_size: ${eval:'1073741824 / ${variables.max_seq_len}'}
+    streams:
+      eng-fast:
+        local:  "${variables.data_local}/eng-fast"
+        proportion: 1 # 0.34862683488597324
+      # fao:
+      #   local:  "${variables.data_local}/fao"
+      #   proportion: 0.5 # 4.082718707022429e-06
   drop_last: true
-  num_workers: 8
+  num_workers: ${variables.train_num_workers}
+  prefetch_factor: 2
 
 eval_loader:
-  name: text
-  dataset:
-    local: ${variables.data_local}
-    remote: ${variables.data_remote}
-    split: val
-    shuffle: false
-    max_seq_len: ${variables.max_seq_len}
-    shuffle_seed: ${variables.global_seed}
-  drop_last: false
-  num_workers: 8
+  - name: text
+    label: eng-fast
+    dataset:
+      local:
+      remote:
+      split: val
+      shuffle: false
+      max_seq_len: ${variables.max_seq_len}
+      shuffle_seed: ${variables.global_seed}
+      epoch_size: null # will be set to the sum of streams
+      streams:
+        eng-fast:
+          local:  "${variables.data_local}/eng-fast"
+          repeat: 1  
+    drop_last: false
+    num_workers: ${variables.eval_num_workers}
+    prefetch_factor: 2
+  # - name: text
+  #   label: fao
+  #   dataset:
+  #     local:
+  #     remote:
+  #     split: val
+  #     shuffle: false
+  #     max_seq_len: ${variables.max_seq_len}
+  #     shuffle_seed: ${variables.global_seed}
+  #     epoch_size: null # will be set to the sum of streams
+  #     streams:
+  #       fao:
+  #         local:  "${variables.data_local}/fao"
+  #         repeat: 1      
+  #   drop_last: false
+  #   num_workers: ${variables.eval_num_workers}
+  #   prefetch_factor: 2
 
 # Optimization
 scheduler:
-  name: cosine_with_warmup
-  t_warmup: 100ba
-  alpha_f: 0.1
+  name: ???
+  t_warmup: ???
+  t_constant: ???
+  t_decay: ???
+  alpha_f: ???
 
 optimizer:
-  name: decoupled_adamw
-  lr: 2.0e-4
-  betas:
-  - 0.9
-  - 0.95
-  eps: 1.0e-08
-  weight_decay: 0.0
+  name: ???
+  lr: ???
+  momentum: 0.95
+  nesterov: true
+  eps: ${variables.mup_config.eps_base}
+  norm_factor: 'linear'
+  backend: 'newtonschulz5'
+  param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
+    - param_str_match: wte.weight
+      lr: ${variables.embedding_lr}
+      momentum: ${variables.embedding_momentum}
+      nesterov: ${variables.embedding_nesterov}
+      norm_factor: 'linear' # 'embed'
+      backend: 'newtonschulz5' # 'identity'
+    # - param_str_match: attn.Wqkv.weight
+    #   norm_factor: 'linear'
+    #   backend: 'newtonschulz5'
+    # - param_str_match: attn.out_proj.weight
+    #   norm_factor: 'linear'
+    #   backend: 'newtonschulz5'
+    # - param_str_match: ffn.up_proj.weight
+    #   norm_factor: 'linear'
+    #   backend: 'newtonschulz5'
+    # - param_str_match: ffn.down_proj.weight
+    #   norm_factor: 'linear'
+    #   backend: 'newtonschulz5'
+    # - param_str_match: ffn.gate_proj.weight
+    #   norm_factor: 'linear'
+    #   backend: 'newtonschulz5'
+
+# optimizer:
+#   name: ???
+#   lr: ???
+#   betas: ???
+#   weight_decay: ???
+#   eps: ${variables.mup_config.eps_base}
+#   # param_groups: ${variables.mup_config.param_groups}
 
 algorithms:
   gradient_clipping:
     clipping_type: norm
     clipping_threshold: 1.0
 
-max_duration: 24800ba  # ~ 26B tokens
-eval_interval: 2000ba
+max_duration: ???
+eval_interval: ???
 eval_first: false
 eval_subset_num_batches: -1
-global_train_batch_size: 512
+global_train_batch_size: ???
 
 # System
 seed: ${variables.global_seed}
-device_eval_batch_size: 4
-device_train_microbatch_size: 4
+device_eval_batch_size: ???
+device_train_microbatch_size: ???
 # device_train_microbatch_size: auto
-precision: amp_bf16
+precision: ???
+accumulate_train_batch_on_tokens: ??? # default: True
 
 # FSDP
-fsdp_config:
-  sharding_strategy: FULL_SHARD
-  mixed_precision: PURE
-  activation_checkpointing: false
-  activation_checkpointing_reentrant: false
-  activation_cpu_offload: false
-  limit_all_gathers: true
+fsdp_config: null
+  # use_orig_params: true
+  # sharding_strategy: ???
+  # mixed_precision: PURE
+  # activation_checkpointing: false
+  # activation_checkpointing_reentrant: false
+  # activation_cpu_offload: false
+  # limit_all_gathers: true
+tp_config: null
 
 # Logging
 progress_bar: false
@@ -102,21 +243,29 @@ log_to_console: true
 console_log_interval: 1ba
 
 callbacks:
-  speed_monitor:
-    window_size: 10
+  # speed_monitor:
+  #   window_size: 10
   lr_monitor: {}
-  memory_monitor: {}
-  runtime_estimator: {}
+  # memory_monitor: {}
+  # runtime_estimator: {}
 
-# loggers:
-#   wandb: {}
+loggers:
+  mlflow:
+    tracking_uri: ???
+    experiment_name: ???
+    run_name: ${run_name}
+    resume: ???
+    ignore_hyperparameters: []
+  tensorboard:
+    log_dir: ???
+    flush_interval: 100
 
 # Checkpoint to local filesystem or remote object store
-# save_interval: 2000ba
-# save_num_checkpoints_to_keep: 1  # Important, this cleans up checkpoints saved to DISK
-# save_folder: ./{run_name}/checkpoints
-# save_folder: s3://my-bucket/my-folder/{run_name}/checkpoints
+save_interval: ???
+save_overwrite: ???
+save_num_checkpoints_to_keep: ???
+save_folder: ???
+save_weights_only: false
 
 # Load from local filesystem or remote object store
-# load_path: ./gpt-1b/checkpoints/latest-rank{rank}.pt
-# load_path: s3://my-bucket/my-folder/gpt-1b/checkpoints/latest-rank{rank}.pt
+load_path: ???
