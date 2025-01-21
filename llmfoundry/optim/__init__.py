@@ -13,6 +13,8 @@ from composer.optim import (
 from llmfoundry.optim.adaptive_lion import DecoupledAdaLRLion, DecoupledClipLion
 from llmfoundry.optim.lion import DecoupledLionW
 from llmfoundry.optim.no_op import NoOp
+from llmfoundry.optim.muon import Muon
+
 from llmfoundry.optim.scheduler import InverseSquareRootWithWarmupScheduler
 from llmfoundry.registry import optimizers, schedulers
 
@@ -22,6 +24,7 @@ optimizers.register('decoupled_lionw', func=DecoupledLionW)
 optimizers.register('decoupled_adamw', func=DecoupledAdamW)
 optimizers.register('adamw', func=AdamW)
 optimizers.register('no_op', func=NoOp)
+optimizers.register('muon', func=Muon)
 
 schedulers.register('constant_decay_with_warmup', func=ConstantDecayWithWarmupScheduler)
 schedulers.register('constant_with_warmup', func=ConstantWithWarmupScheduler)
@@ -40,5 +43,6 @@ __all__ = [
     'DecoupledClipLion',
     'DecoupledAdaLRLion',
     'NoOp',
+    'Muon',
     'InverseSquareRootWithWarmupScheduler',
 ]
