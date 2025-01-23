@@ -5,12 +5,17 @@ __all__ = [
     'Muon',
 ]
 
-def zeropower_via_svd(G, steps=None):
+def zeropower_via_svd(G, steps=None, dual_norm_scaling=False, **kwargs):
     U, S, V = G.svd()
-    return U @ V.T
+    X = U @ V.T
+    if dual_norm_scaling:
+        # https://x.com/leloykun/status/1874358290093924849
+        X = torch.einsum('ij,ij,ab->ab', G.type_as(X), X, X)  # Adaptive scaling,`(G * X).sum() * X` == (G.T @ X).trace() * X
+
+    return X
 
 @torch.compile
-def zeropower_via_newtonschulz5(G, steps=10, eps=1e-7):
+def zeropower_via_newtonschulz5(G, steps=10, dual_norm_scaling=False, eps=1e-7):
     """
     Newton-Schulz iteration to compute the zeroth power / orthogonalization of G. We opt to use a
     quintic iteration whose coefficients are selected to maximize the slope at zero. For the purpose
@@ -29,12 +34,19 @@ def zeropower_via_newtonschulz5(G, steps=10, eps=1e-7):
     X /= (X.norm() + eps) # ensure top singular value <= 1
     if G.size(0) > G.size(1):
         X = X.T
+
     for _ in range(steps):
         A = X @ X.T
-        B = A @ X
-        X = a * X + b * B + c * A @ B
+        B = b * A + c * A @ A  # quintic computation strategy adapted from suggestion by @jxbz, @leloykun, and @YouJiacheng
+        X = a * X + B @ X
+
     if G.size(0) > G.size(1):
         X = X.T
+    
+    if dual_norm_scaling:
+        # https://x.com/leloykun/status/1874358290093924849
+        X = torch.einsum('ij,ij,ab->ab', G.type_as(X), X, X)  # Adaptive scaling,`(G * X).sum() * X` == (G.T @ X).trace() * X
+
     return X
 
 zeropower_backends = dict(svd=zeropower_via_svd, newtonschulz5=zeropower_via_newtonschulz5, identity=lambda x, **kwargs: x)
@@ -64,9 +76,10 @@ class Muon(torch.optim.Optimizer):
         backend: The chosen backend for the orthogonalization step. (recommended: 'newtonschulz5')
         backend_steps: The number of iteration steps to use in the backend, if it is iterative.
     """
-    def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, eps=1e-7, norm_factor='none',
+    def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, dual_norm_scaling=False, eps=1e-7, norm_factor='none',
                  backend='newtonschulz5', backend_steps=5):
-        defaults = dict(lr=lr, momentum=momentum, nesterov=nesterov, eps=eps, norm_factor=norm_factor, 
+        defaults = dict(lr=lr, momentum=momentum, nesterov=nesterov, 
+                        dual_norm_scaling=dual_norm_scaling, eps=eps, norm_factor=norm_factor, 
                         backend=backend, backend_steps=backend_steps)
         super().__init__(params, defaults)
 
@@ -85,6 +98,7 @@ class Muon(torch.optim.Optimizer):
             backend_steps = group['backend_steps']
             norm_factor = group['norm_factor']
             nesterov = group['nesterov']
+            dual_norm_scaling = group['dual_norm_scaling']
             
             for _, p in enumerate(group['params']):
                 g = p.grad
@@ -103,7 +117,7 @@ class Muon(torch.optim.Optimizer):
                 buf.mul_(momentum).add_(g)
                 if nesterov:
                     g = g.add(buf, alpha=momentum)
-                g = zeropower_backend(g, steps=backend_steps, eps=eps)
+                g = zeropower_backend(g, steps=backend_steps, dual_norm_scaling=dual_norm_scaling, eps=eps)
                 if norm_factor == 'linear':
                     g *= max(1, g.size(0)/g.size(1))**0.5
                 elif norm_factor == 'embed':
