@@ -22,6 +22,7 @@ from typing import (
 
 import torch
 import torch.nn as nn
+import torch.nn.init as init
 import torch.nn.functional as F
 from composer.models import HuggingFaceModel
 from composer.utils import dist
@@ -1059,6 +1060,9 @@ class MPTForCausalLM(MPTPreTrainedModel):
                 bias=False,
                 device=config.init_device,
             )
+            unemb_std = (config.vocab_size / config.d_model)**0.5 / (config.d_model**0.5 + config.vocab_size**0.5)
+            init.normal_(self.lm_head.weight, mean=0.0, std=unemb_std) #  * (config.d_model / 256)**0.5
+
             self.lm_head._fsdp_wrap = True
             self.lm_head._is_unembedding = True
 
