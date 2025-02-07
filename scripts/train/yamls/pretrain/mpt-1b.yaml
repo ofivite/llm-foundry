@@ -8,15 +8,16 @@ variables:
   embedding_lr: ???
   embedding_momentum: ???
   embedding_nesterov: ???
+  embedding_dual: ???
   dual_norm_scaling: ???
-  mup_config: 
-    d_model_base: ???
-    n_heads_base: ???
-    d_heads_base: ${eval:'${.d_model_base} / ${.n_heads_base}'}
-    d_heads: ${eval:'${model.d_model} / ${model.n_heads}'}
-    d_model_ratio: ${eval:'${model.d_model} / ${.d_model_base}'} 
-    eps_base: ???
-    init_std_base: ???
+  eps_base: ???
+  # mup_config: 
+  #   d_model_base: ???
+  #   n_heads_base: ???
+  #   d_heads_base: ${eval:'${.d_model_base} / ${.n_heads_base}'}
+  #   d_heads: ${eval:'${model.d_model} / ${model.n_heads}'}
+  #   d_model_ratio: ${eval:'${model.d_model} / ${.d_model_base}'} 
+  #   init_std_base: ???
     # param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
     #   - param_str_match: attn.Wqkv.weight
     #     lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
@@ -64,7 +65,7 @@ model:
   norm_type: rmsnorm
   norm_eps: 1e-5
   norm_weight: false # only valid for norm_type={rmsnorm, low_precision_rmsnorm}
-  logit_scale: ${eval:'1 / ${variables.mup_config.d_model_ratio}'}
+  logit_scale: 1.0 # ${eval:'1 / ${variables.mup_config.d_model_ratio}'}
   fc_type: torch
   ffn_config:
     ffn_type: mptglu
@@ -75,7 +76,7 @@ model:
     attn_impl: flash
     attn_pdrop: 0.0
     kv_n_heads: ???
-    softmax_scale: ${eval:'(${variables.mup_config.d_heads_base})**0.5 / ${variables.mup_config.d_heads}'}
+    softmax_scale: 1. # ${eval:'(${variables.mup_config.d_heads_base})**0.5 / ${variables.mup_config.d_heads}'}
     qk_ln: false
     qk_gn: false
     fused_qkv: true
@@ -91,10 +92,43 @@ model:
       factor: 1.0
   init_config:
     name: baseline_
-    init_std: ${eval:'${variables.mup_config.init_std_base} / ${variables.mup_config.d_model_ratio}**0.5'} # NB: make sure all the layers which receive this std are matrix like!
+    init_std: ${eval:'1 / ${model.d_model}**0.5'}
+    # d_model: null # in theory shouldn't be used, pass here as a check
     init_div_is_residual: True # True: 1 / math.sqrt(2 * cfg.n_layers)
-    emb_init_std: ${variables.mup_config.init_std_base}
-    unemb_init_std: ${variables.mup_config.init_std_base}
+    emb_init_std: ${eval:'1e4 * (${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+    unemb_init_std: -999 # patched in source to: ${eval:'(${model.vocab_size}/${model.d_model})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+
+  # init_config: # init v3
+  #   name: baseline_
+  #   init_std: ${eval:'1 / ${model.d_model}**0.5'}
+  #   # d_model: null # in theory shouldn't be used, pass here as a check
+  #   init_div_is_residual: True # True: 1 / math.sqrt(2 * cfg.n_layers)
+  #   emb_init_std: ${eval:'1e4 * (${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+  #   unemb_init_std: -999 # patched in source to: ${eval:'(${model.vocab_size}/${model.d_model})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+      
+  # init_config: # init v2
+  #   name: baseline_
+  #   init_std: 0.0625
+  #   # d_model: null # in theory shouldn't be used, pass here as a check
+  #   init_div_is_residual: True # True: 1 / math.sqrt(2 * cfg.n_layers)
+  #   emb_init_std: ${eval:'(${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+  #   unemb_init_std: ${eval:'(${model.d_model}) / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+  
+  # init_config: # init v1
+  #   name: baseline_
+  #   init_std: 0.0625
+  #   # d_model: null # in theory shouldn't be used, pass here as a check
+  #   init_div_is_residual: True # True: 1 / math.sqrt(2 * cfg.n_layers)
+  #   emb_init_std: ${eval:'(${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+  #   unemb_init_std: ${eval:'((${model.d_model})**0.5) / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+  
+  # init_config: # init v0
+  #   name: xavier_normal_
+  #   init_gain: ${eval:'(${model.d_model})**0.5 / 16'}
+  #   # d_model: null # in theory shouldn't be used, pass here as a check
+  #   init_div_is_residual: True # True: 1 / math.sqrt(2 * cfg.n_layers)
+  #   emb_init_std: ${eval:'(${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+  #   unemb_init_std: ${eval:'((${model.vocab_size})**0.5 / 16) / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
 
 # Tokenizer
 tokenizer:
@@ -175,16 +209,14 @@ optimizer:
   momentum: 0.95
   nesterov: true
   dual_norm_scaling: ${variables.dual_norm_scaling}
-  eps: ${variables.mup_config.eps_base}
+  eps: ${variables.eps_base}
   norm_factor: 'linear'
   backend: 'newtonschulz5'
   param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
     - param_str_match: wte.weight
-      lr: ${variables.embedding_lr}
       momentum: ${variables.embedding_momentum}
       nesterov: ${variables.embedding_nesterov}
-      norm_factor: 'linear' # 'embed'
-      backend: 'newtonschulz5' # 'identity'
+      dual_norm_scaling: ${variables.embedding_dual}
     # - param_str_match: attn.Wqkv.weight
     #   norm_factor: 'linear'
     #   backend: 'newtonschulz5'
@@ -201,6 +233,57 @@ optimizer:
     #   norm_factor: 'linear'
     #   backend: 'newtonschulz5'
 
+# optimizer: # v2
+#   name: ???
+#   lr: ???
+#   momentum: 0.95
+#   nesterov: true
+#   dual_norm_scaling: ${variables.dual_norm_scaling}
+#   eps: ${variables.eps_base}
+#   norm_factor: 'linear'
+#   backend: 'newtonschulz5'
+#   param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
+#     - param_str_match: wte.weight
+#       lr: ${eval:'${variables.embedding_lr} * ${model.d_model} / 256'}
+#       momentum: ${variables.embedding_momentum}
+#       nesterov: ${variables.embedding_nesterov}
+#       norm_factor: 'linear' # 'embed'
+#       backend: 'newtonschulz5' # 'identity'
+#       dual_norm_scaling: ${variables.embedding_dual}
+
+# optimizer: # v1
+  # name: ???
+  # lr: ???
+  # momentum: 0.95
+  # nesterov: true
+  # dual_norm_scaling: ${variables.dual_norm_scaling}
+  # eps: ${variables.eps_base}
+  # norm_factor: 'linear'
+  # backend: 'newtonschulz5'
+  # param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
+  #   - param_str_match: wte.weight
+  #     momentum: ${variables.embedding_momentum}
+  #     nesterov: ${variables.embedding_nesterov}
+  #     dual_norm_scaling: ${variables.embedding_dual}
+
+# optimizer: # opt v0
+#   name: ???
+#   lr: ${eval:'${variables.lr} * (${model.d_model} / 256)**0.5'}
+#   momentum: 0.95
+#   nesterov: true
+#   dual_norm_scaling: ${variables.dual_norm_scaling}
+#   eps: ${variables.eps_base}
+#   norm_factor: 'none'
+#   backend: 'newtonschulz5'
+#   param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
+#     - param_str_match: wte.weight
+#       lr: ${variables.embedding_lr}
+#       momentum: ${variables.embedding_momentum}
+#       nesterov: ${variables.embedding_nesterov}
+#       norm_factor: 'none' # 'embed'
+#       backend: 'newtonschulz5' # 'identity'
+#       dual_norm_scaling: ${variables.embedding_dual}
+
 # optimizer:
 #   name: ???
 #   lr: ???
@@ -209,10 +292,10 @@ optimizer:
 #   eps: ${variables.mup_config.eps_base}
 #   # param_groups: ${variables.mup_config.param_groups}
 
-algorithms:
-  gradient_clipping:
-    clipping_type: norm
-    clipping_threshold: 1.0
+# algorithms:
+#   gradient_clipping:
+#     clipping_type: norm
+#     clipping_threshold: 1.0
 
 max_duration: ???
 eval_interval: ???
@@ -247,6 +330,8 @@ console_log_interval: 1ba
 callbacks:
   # speed_monitor:
   #   window_size: 10
+  optimizer_monitor:
+    batch_log_interval: 256
   lr_monitor: {}
   # memory_monitor: {}
   # runtime_estimator: {}
