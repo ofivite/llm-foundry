@@ -76,6 +76,18 @@ class Muon(torch.optim.Optimizer):
         backend: The chosen backend for the orthogonalization step. (recommended: 'newtonschulz5')
         backend_steps: The number of iteration steps to use in the backend, if it is iterative.
     """
+
+    metric_functions = {
+        # 'l2_norm/moment': lambda param, optim_state, step_tensor: torch.linalg.vector_norm(optim_state['exp_avg']),
+        'l2_norm/param': lambda param, optim_state, step_tensor: torch.linalg.vector_norm(param.data),
+        'l2_norm/update': lambda param, optim_state, step_tensor: torch.linalg.vector_norm(step_tensor),
+        # 'l2_norm/grad': lambda param, optim_state, step_tensor: torch.linalg.vector_norm(param.grad),
+        'l1_norm/param': lambda param, optim_state, step_tensor: torch.abs(param.data).mean(),
+        'l1_norm/update': lambda param, optim_state, step_tensor: torch.abs(step_tensor).mean(),
+        'spectral_norm/param': lambda param, optim_state, step_tensor: torch.linalg.norm(param.data.to(torch.float32), ord=2, dtype=torch.float32),
+        'spectral_norm/update': lambda param, optim_state, step_tensor: torch.linalg.norm(step_tensor.to(torch.float32), ord=2, dtype=torch.float32),
+    }
+
     def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, dual_norm_scaling=False, eps=1e-7, norm_factor='none',
                  backend='newtonschulz5', backend_steps=5):
         defaults = dict(lr=lr, momentum=momentum, nesterov=nesterov, 
@@ -111,6 +123,8 @@ class Muon(torch.optim.Optimizer):
                     state['step'] = torch.zeros((), dtype=torch.float, device=p.device)
                 if 'momentum_buffer' not in state:
                     state['momentum_buffer'] = torch.zeros_like(g)
+                if 'update' not in state:
+                    state['update'] = torch.zeros_like(g)
 
                 # Compute updated gradient
                 buf = state['momentum_buffer']
@@ -119,7 +133,7 @@ class Muon(torch.optim.Optimizer):
                     g = g.add(buf, alpha=momentum)
                 g = zeropower_backend(g, steps=backend_steps, dual_norm_scaling=dual_norm_scaling, eps=eps)
                 if norm_factor == 'linear':
-                    g *= max(1, g.size(0)/g.size(1))**0.5
+                    g *= (g.size(0)/g.size(1))**0.5
                 elif norm_factor == 'embed':
                     # print('\n\n\n')
                     # print('EMBED, shape: ', g.shape)
@@ -133,8 +147,22 @@ class Muon(torch.optim.Optimizer):
 
                 # Update the parameter
                 p.data.add_(g, alpha=-lr)
+                state['update'] = g*lr
 
                 # Update the steps for each param group update
                 state['step'] += 1
 
         return loss
+    
+    def report_per_parameter_metrics(self, param: torch.Tensor, name: str, optimizer_metrics: dict):
+        if param in self.state:
+            param_optim_state = self.state[param]
+            step_tensor = self.state[param]['update']
+            for metric in self.metric_functions:
+                optimizer_metrics[f'{metric}/{name}'] = self.metric_functions[metric](
+                    param,
+                    param_optim_state,
+                    step_tensor,
+                )
+
+        return optimizer_metrics
