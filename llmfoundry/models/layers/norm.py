@@ -16,6 +16,7 @@ __all__ = [
 ]
 
 norms.register(name='layernorm', func=torch.nn.LayerNorm)
+norms.register(name='identity', func=torch.nn.Identity)
 
 
 def _cast_if_autocast_enabled(tensor: torch.Tensor) -> torch.Tensor:
