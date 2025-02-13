@@ -133,13 +133,16 @@ class Muon(torch.optim.Optimizer):
                     g = g.add(buf, alpha=momentum)
                 g = zeropower_backend(g, steps=backend_steps, dual_norm_scaling=dual_norm_scaling, eps=eps)
                 if norm_factor == 'linear':
+                    # print('\n\n\n')
+                    # print('LINEAR, shape: ', g.shape)
+                    # print('\n\n\n')
                     g *= (g.size(0)/g.size(1))**0.5
                 elif norm_factor == 'embed':
                     # print('\n\n\n')
                     # print('EMBED, shape: ', g.shape)
-                    # print('EMBED, momentum: ', momentum)
                     # print('\n\n\n')
-                    g *= torch.rsqrt(g.pow(2).mean(-1, keepdim=True) + eps) # + eps maybe
+                    g *= torch.rsqrt(g.pow(2).mean(1, keepdim=True) + eps) # + eps maybe
+                    g *= g.size(1)**0.5
                 elif norm_factor == 'none':
                     pass
                 else:
