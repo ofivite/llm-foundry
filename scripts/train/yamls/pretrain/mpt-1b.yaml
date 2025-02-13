@@ -5,19 +5,23 @@ variables:
   global_seed: ???
   train_num_workers: ???
   eval_num_workers: ???
-  embedding_lr: ???
   embedding_momentum: ???
   embedding_nesterov: ???
+  embedding_norm_factor: ???
   embedding_dual: ???
   dual_norm_scaling: ???
   eps_base: ???
+  init_std_base: ???
+  emb_init_std_base: ???
+  lr_base: ???
+  embedding_lr_base: ???
   # mup_config: 
-  #   d_model_base: ???
-  #   n_heads_base: ???
-  #   d_heads_base: ${eval:'${.d_model_base} / ${.n_heads_base}'}
-  #   d_heads: ${eval:'${model.d_model} / ${model.n_heads}'}
-  #   d_model_ratio: ${eval:'${model.d_model} / ${.d_model_base}'} 
-  #   init_std_base: ???
+    # d_model_base: ???
+    # n_heads_base: ???
+    # d_heads_base: ${eval:'${.d_model_base} / ${.n_heads_base}'}
+    # d_heads: ${eval:'${model.d_model} / ${model.n_heads}'}
+    # d_model_ratio: ${eval:'${model.d_model} / ${.d_model_base}'} 
+    # init_std_base: ???
     # param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
     #   - param_str_match: attn.Wqkv.weight
     #     lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
@@ -60,23 +64,23 @@ model:
   resid_pdrop: 0.0
   emb_pdrop: 0.0
   embedding_fraction: 1.0
-  tie_word_embeddings: false
+  tie_word_embeddings: true
   no_bias: true
-  norm_type: rmsnorm
-  norm_eps: 1e-5
+  norm_type: ???
+  norm_eps: 1e-15
   norm_weight: false # only valid for norm_type={rmsnorm, low_precision_rmsnorm}
-  logit_scale: 1.0 # ${eval:'1 / ${variables.mup_config.d_model_ratio}'}
+  logit_scale: ${eval:'(256 / ${model.d_model})'} # ${eval:'(256 / ${model.d_model})**0.5'}
   fc_type: torch
   ffn_config:
-    ffn_type: mptglu
+    ffn_type: mptmlp
     ffn_act_fn: 
-      name: silu
+      name: relu
   attn_config:
-    attn_type: grouped_query_attention
+    attn_type: multihead_attention
     attn_impl: flash
     attn_pdrop: 0.0
-    kv_n_heads: ???
-    softmax_scale: 1. # ${eval:'(${variables.mup_config.d_heads_base})**0.5 / ${variables.mup_config.d_heads}'}
+    n_heads: ${model.n_heads}
+    softmax_scale: ${eval:'1 / (${model.d_model} / ${model.n_heads})**0.5'}
     qk_ln: false
     qk_gn: false
     fused_qkv: true
@@ -92,10 +96,10 @@ model:
       factor: 1.0
   init_config:
     name: baseline_
-    init_std: ${eval:'1 / ${model.d_model}**0.5'}
+    init_std: ${eval:'${variables.init_std_base} / (${model.d_model})**0.5'}
     # d_model: null # in theory shouldn't be used, pass here as a check
     init_div_is_residual: True # True: 1 / math.sqrt(2 * cfg.n_layers)
-    emb_init_std: ${eval:'1e4 * (${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+    emb_init_std: ${eval:'${variables.emb_init_std_base} / (256)**0.5'} # ${eval:'1e4 * (${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
     unemb_init_std: -999 # patched in source to: ${eval:'(${model.vocab_size}/${model.d_model})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
 
   # init_config: # init v3
@@ -205,7 +209,7 @@ scheduler:
 
 optimizer:
   name: ???
-  lr: ???
+  lr: ${eval:'${variables.lr_base}'} #  * (${model.d_model} / 256)
   momentum: 0.95
   nesterov: true
   dual_norm_scaling: ${variables.dual_norm_scaling}
@@ -214,8 +218,11 @@ optimizer:
   backend: 'newtonschulz5'
   param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
     - param_str_match: wte.weight
+      lr: ${eval:'${variables.embedding_lr_base} / (256)**0.5'} # ${eval:'${variables.embedding_lr_base} / 256 * ${model.d_model}**0.5'}   ////////   ${eval:'${variables.embedding_lr_base} / (256)**0.5'}
       momentum: ${variables.embedding_momentum}
       nesterov: ${variables.embedding_nesterov}
+      norm_factor: ${variables.embedding_norm_factor}
+      backend: 'identity' # 'identity'
       dual_norm_scaling: ${variables.embedding_dual}
     # - param_str_match: attn.Wqkv.weight
     #   norm_factor: 'linear'
@@ -332,6 +339,8 @@ callbacks:
   #   window_size: 10
   optimizer_monitor:
     batch_log_interval: 256
+  mup_monitor:
+    batch_log_interval: 64
   lr_monitor: {}
   # memory_monitor: {}
   # runtime_estimator: {}
