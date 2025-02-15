@@ -9,6 +9,9 @@ variables:
   embedding_nesterov: ???
   embedding_norm_factor: ???
   embedding_dual: ???
+  embedding_backend: ???
+  unembedding_norm_factor: ???
+  unembedding_backend: ???
   dual_norm_scaling: ???
   eps_base: ???
   init_std_base: ???
@@ -64,12 +67,12 @@ model:
   resid_pdrop: 0.0
   emb_pdrop: 0.0
   embedding_fraction: 1.0
-  tie_word_embeddings: true
+  tie_word_embeddings: false
   no_bias: true
   norm_type: ???
   norm_eps: 1e-15
   norm_weight: false # only valid for norm_type={rmsnorm, low_precision_rmsnorm}
-  logit_scale: ${eval:'(256 / ${model.d_model})'} # ${eval:'(256 / ${model.d_model})**0.5'}
+  logit_scale: 1.0 # ${eval:'(256 / ${model.d_model})**0.5'}
   fc_type: torch
   ffn_config:
     ffn_type: mptmlp
@@ -222,8 +225,14 @@ optimizer:
       momentum: ${variables.embedding_momentum}
       nesterov: ${variables.embedding_nesterov}
       norm_factor: ${variables.embedding_norm_factor}
-      backend: 'identity' # 'identity'
+      backend: ${variables.embedding_backend}
       dual_norm_scaling: ${variables.embedding_dual}
+    - param_str_match: lm_head.weight
+      lr: ${eval:'${variables.embedding_lr_base} * 256 / (${model.d_model})**0.5'}
+      momentum: ${variables.embedding_momentum}
+      nesterov: ${variables.embedding_nesterov}
+      norm_factor: ${variables.unembedding_norm_factor}
+      backend: ${variables.unembedding_backend}
     # - param_str_match: attn.Wqkv.weight
     #   norm_factor: 'linear'
     #   backend: 'newtonschulz5'
@@ -338,9 +347,9 @@ callbacks:
   # speed_monitor:
   #   window_size: 10
   optimizer_monitor:
-    batch_log_interval: 256
+    batch_log_interval: ???
   mup_monitor:
-    batch_log_interval: 64
+    batch_log_interval: ???
   lr_monitor: {}
   # memory_monitor: {}
   # runtime_estimator: {}

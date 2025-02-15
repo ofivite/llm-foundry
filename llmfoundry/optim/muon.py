@@ -14,6 +14,107 @@ def zeropower_via_svd(G, steps=None, dual_norm_scaling=False, **kwargs):
 
     return X
 
+def l1_to_rms_norm(W):
+    norm = torch.max(torch.norm(W.data.to(torch.float32), p=2, dim=0, dtype=torch.float32))
+    scale = torch.sqrt(torch.tensor(W.data.shape[0], dtype=W.dtype, device=W.device))
+    norm /= scale
+    return norm
+
+def rms_to_l1_norm(W):
+    norm = torch.max(torch.norm(W.data.to(torch.float32), p=2, dim=1, dtype=torch.float32))
+    scale = torch.sqrt(torch.tensor(W.data.shape[1], dtype=W.dtype, device=W.device))
+    norm *= scale
+    return norm
+    
+def duality_map_L1_to_RMS_embed(G, steps=None, **kwargs):
+    """
+    Computes the duality map for the L1 -> RMS induced operator norm for a matrix G.
+    
+    Given G of shape (m, n), the function returns a matrix T of the same shape,
+    where T is zero in every column except for the column j* that maximizes the L2 norm.
+    That column is set to sqrt(m) * (G[:, j*] / ||G[:, j*]||_2).
+    
+    Args:
+        G (torch.Tensor): Input matrix of shape (m, n).
+        
+    Returns:
+        torch.Tensor: The dual matrix T of shape (m, n) with ||T||_{L1->RMS} = 1.
+    """
+
+    G = G.T # SharedEmbedding has shape=(vocab, d_model), need to transpose
+    m, n = G.shape
+
+    # Compute the L2 norm of each column
+    col_norms = torch.norm(G, p=2, dim=0)  # shape (n,)
+    
+    # Find the column index with maximum L2 norm
+    j_star = torch.argmax(col_norms)
+    
+    # Get the column vector corresponding to j_star
+    col = G[:, j_star]
+    
+    # Normalize the selected column (avoid division by zero)
+    col_norm = torch.norm(col, p=2)
+    if col_norm.item() == 0:
+        # If the column norm is zero, return the zero matrix.
+        return torch.zeros_like(G)
+    
+    col_normalized = col / col_norm
+
+    # Create the output matrix T: all zeros except in column j_star.
+    T = torch.zeros_like(G)
+    # Multiply by sqrt(m) so that the RMS norm of the nonzero column becomes:
+    # RMS_norm = (1/sqrt(m)) * || sqrt(m)*(col/||col||) ||_2 = 1.
+    T[:, j_star] = torch.sqrt(torch.tensor(m, dtype=G.dtype, device=G.device)) * col_normalized
+    
+    T = T.T # Transpose back to original shape
+    return T
+
+
+def duality_map_RMS_to_L1(G, steps=None, **kwargs):
+    """
+    Computes the duality map for the RMS -> L1 induced operator norm for a matrix G.
+    
+    For a matrix G of shape (m, n), the duality map returns a matrix T of the same shape,
+    where T is zero in every row except for the row i* that maximizes the L2 norm of the row.
+    That row is set to (1/sqrt(n)) * (G[i*, :] / ||G[i*, :]||_2) so that ||T||_{RMS->L1} = 1.
+    
+    Args:
+        G (torch.Tensor): Input matrix of shape (m, n).
+        
+    Returns:
+        torch.Tensor: The dual matrix T of shape (m, n) for the RMS -> L1 norm.
+    """
+    m, n = G.shape
+
+    # Compute the L2 norm of each row (over the columns)
+    row_norms = torch.norm(G, p=2, dim=1)  # shape: (m,)
+    
+    # Find the index of the row with the maximum L2 norm
+    i_star = torch.argmax(row_norms)
+    
+    # Extract the selected row
+    row = G[i_star, :]
+    
+    # Avoid division by zero: if the row is all zeros, return a zero matrix.
+    row_norm = torch.norm(row, p=2)
+    if row_norm.item() == 0:
+        return torch.zeros_like(G)
+    
+    # Normalize the selected row
+    row_normalized = row / row_norm
+    
+    # Create an output matrix T of the same shape as G (initialized with zeros)
+    T = torch.zeros_like(G)
+    
+    # Set the selected row to (1/sqrt(n)) * normalized row.
+    # This scaling ensures that when the RMS norm on the input is defined as (1/sqrt(n)) * ||.||_2,
+    # the resulting operator has norm 1.
+    scale = 1.0 / torch.sqrt(torch.tensor(n, dtype=G.dtype, device=G.device))
+    T[i_star, :] = scale * row_normalized
+
+    return T
+
 @torch.compile
 def zeropower_via_newtonschulz5(G, steps=10, dual_norm_scaling=False, eps=1e-7):
     """
@@ -49,7 +150,11 @@ def zeropower_via_newtonschulz5(G, steps=10, dual_norm_scaling=False, eps=1e-7):
 
     return X
 
-zeropower_backends = dict(svd=zeropower_via_svd, newtonschulz5=zeropower_via_newtonschulz5, identity=lambda x, **kwargs: x)
+zeropower_backends = dict(svd=zeropower_via_svd, 
+                            newtonschulz5=zeropower_via_newtonschulz5, 
+                            identity=lambda x, **kwargs: x,
+                            dual_embed=duality_map_L1_to_RMS_embed,
+                            dual_unembed=duality_map_RMS_to_L1)
 
 class Muon(torch.optim.Optimizer):
     """
@@ -86,6 +191,10 @@ class Muon(torch.optim.Optimizer):
         'l1_norm/update': lambda param, optim_state, step_tensor: torch.abs(step_tensor).mean(),
         'spectral_norm/param': lambda param, optim_state, step_tensor: torch.linalg.norm(param.data.to(torch.float32), ord=2, dtype=torch.float32),
         'spectral_norm/update': lambda param, optim_state, step_tensor: torch.linalg.norm(step_tensor.to(torch.float32), ord=2, dtype=torch.float32),
+        'l1_to_rms/param': lambda param, optim_state, step_tensor: l1_to_rms_norm(param),
+        'l1_to_rms/update': lambda param, optim_state, step_tensor: l1_to_rms_norm(step_tensor),
+        'rms_to_l1/param': lambda param, optim_state, step_tensor: rms_to_l1_norm(param),
+        'rms_to_l1/update': lambda param, optim_state, step_tensor: rms_to_l1_norm(step_tensor),
     }
 
     def __init__(self, params, lr=0.02, momentum=0.95, nesterov=True, dual_norm_scaling=False, eps=1e-7, norm_factor='none',
@@ -143,6 +252,12 @@ class Muon(torch.optim.Optimizer):
                     # print('\n\n\n')
                     g *= torch.rsqrt(g.pow(2).mean(1, keepdim=True) + eps) # + eps maybe
                     g *= g.size(1)**0.5
+                elif norm_factor == 'unembed':
+                    # print('\n\n\n')
+                    # print('UNEMBED, shape: ', g.shape)
+                    # print('\n\n\n')
+                    g *= torch.rsqrt(g.pow(2).mean(1, keepdim=True) + eps) # + eps maybe
+                    g /= g.size(1)**0.5
                 elif norm_factor == 'none':
                     pass
                 else:
@@ -162,6 +277,10 @@ class Muon(torch.optim.Optimizer):
             param_optim_state = self.state[param]
             step_tensor = self.state[param]['update']
             for metric in self.metric_functions:
+                if 'wte' in name: 
+                    # transpose to align with shape convention [out, in]
+                    param.data = param.data.T
+                    step_tensor = step_tensor.T
                 optimizer_metrics[f'{metric}/{name}'] = self.metric_functions[metric](
                     param,
                     param_optim_state,
