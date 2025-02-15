@@ -213,8 +213,8 @@ scheduler:
 optimizer:
   name: ???
   lr: ${eval:'${variables.lr_base}'} #  * (${model.d_model} / 256)
-  momentum: 0.95
-  nesterov: true
+  momentum: ???
+  nesterov: ???
   dual_norm_scaling: ${variables.dual_norm_scaling}
   eps: ${variables.eps_base}
   norm_factor: 'linear'
