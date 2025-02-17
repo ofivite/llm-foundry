@@ -219,6 +219,7 @@ optimizer:
   eps: ${variables.eps_base}
   norm_factor: 'linear'
   backend: 'newtonschulz5'
+  backend_steps: ???
   param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
     - param_str_match: wte.weight
       lr: ${eval:'${variables.embedding_lr_base} / (256)**0.5'} # ${eval:'${variables.embedding_lr_base} / 256 * ${model.d_model}**0.5'}   ////////   ${eval:'${variables.embedding_lr_base} / (256)**0.5'}
