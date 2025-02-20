@@ -5,7 +5,6 @@ variables:
   global_seed: ???
   train_num_workers: ???
   eval_num_workers: ???
-  eps_base: ???
   mup_config: 
     d_model_base: ???
     n_heads_base: ???
@@ -13,7 +12,13 @@ variables:
     d_heads: ${eval:'${model.d_model} / ${model.n_heads}'}
     d_model_ratio: ${eval:'${model.d_model} / ${.d_model_base}'} 
     init_std_base: ???
+    emb_init_std_base: ???
+    eps_base: ???
     param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
+      - param_str_match: lm_head.weight
+        lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
+        eps: ${eval:'${variables.mup_config.eps_base} / ${variables.mup_config.d_model_ratio}'}
+        weight_decay: ${eval:'${optimizer.weight_decay} * ${variables.mup_config.d_model_ratio} if "decoupled" not in "${optimizer.name}" else ${optimizer.weight_decay}'}
       - param_str_match: attn.Wqkv.weight
         lr: ${eval:'${optimizer.lr} / ${variables.mup_config.d_model_ratio}'}
         eps: ${eval:'${variables.mup_config.eps_base} / ${variables.mup_config.d_model_ratio}'}
@@ -55,12 +60,12 @@ model:
   resid_pdrop: 0.0
   emb_pdrop: 0.0
   embedding_fraction: 1.0
-  tie_word_embeddings: true
+  tie_word_embeddings: false
   no_bias: true
-  norm_type: rmsnorm
+  norm_type: ???
   norm_eps: 1e-15
   norm_weight: false # only valid for norm_type={rmsnorm, low_precision_rmsnorm}
-  logit_scale: ${eval:'1 / ${variables.mup_config.d_model_ratio}'}
+  logit_scale: 1.0 # ${eval:'1 / ${variables.mup_config.d_model_ratio}'}
   fc_type: torch
   ffn_config:
     ffn_type: mptmlp
@@ -71,7 +76,7 @@ model:
     attn_impl: flash
     attn_pdrop: 0.0
     n_heads: ${model.n_heads}
-    softmax_scale: ${eval:'(${variables.mup_config.d_heads_base})**0.5 / ${variables.mup_config.d_heads}'}
+    softmax_scale: ${eval:'1 / (${model.d_model} / ${model.n_heads})**0.5'} # ${eval:'(${variables.mup_config.d_heads_base})**0.5 / ${variables.mup_config.d_heads}'}
     qk_ln: false
     qk_gn: false
     fused_qkv: true
@@ -93,7 +98,7 @@ model:
     init_std: ${eval:'${variables.mup_config.init_std_base} / (${model.d_model})**0.5'}
     # d_model: null # in theory shouldn't be used, pass here as a check
     init_div_is_residual: True # True: 1 / math.sqrt(2 * cfg.n_layers)
-    emb_init_std: ${eval:'${variables.mup_config.init_std_base} / (${model.vocab_size})**0.5'} # ${eval:'1e4 * (${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
+    emb_init_std: ${eval:'${variables.mup_config.emb_init_std_base} / (256)**0.5'} # ${eval:'1e4 * (${model.d_model}/${model.vocab_size})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
     unemb_init_std: -999 # only when tied: patched in source to ${eval:'(${model.vocab_size}/${model.d_model})**0.5 / ((${model.d_model})**0.5+(${model.vocab_size})**0.5)'}
 
 # Tokenizer
@@ -216,9 +221,9 @@ callbacks:
   # speed_monitor:
   #   window_size: 10
   optimizer_monitor:
-    batch_log_interval: 256
+    batch_log_interval: ???
   mup_monitor:
-    batch_log_interval: 64
+    batch_log_interval: ???
   lr_monitor: {}
   # memory_monitor: {}
   # runtime_estimator: {}
