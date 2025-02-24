@@ -131,6 +131,13 @@ def zeropower_via_newtonschulz5(G, steps=10, dual_norm_scaling=False, eps=1e-7):
     # print('\n\n\n')
     assert len(G.shape) == 2
     a, b, c = (3.4445, -4.7750,  2.0315)
+    #     for a, b, c in [ # updated coefficients from @leloykun
+    #     (4.0848, -6.8946, 2.9270),
+    #     (3.9505, -6.3029, 2.6377),
+    #     (3.7418, -5.5913, 2.3037),
+    #     (2.8769, -3.1427, 1.2046),
+    #     (2.8366, -3.0525, 1.2012),
+    # ]:
     X = G.bfloat16()
     X /= (X.norm() + eps) # ensure top singular value <= 1
     if G.size(0) > G.size(1):
