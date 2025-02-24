@@ -65,6 +65,17 @@ def quickgelu_activation(input: torch.Tensor) -> torch.Tensor:
     """
     return input * torch.sigmoid(1.702 * input)
 
+def squared_relu_activation(input: torch.Tensor) -> torch.Tensor:
+    """Applies the squared ReLU activation function.
+
+    Args:
+        input (torch.Tensor): The input tensor.
+
+    Returns:
+        torch.Tensor: The output tensor.
+    """
+    torch.nn.functional.relu(input, inplace=True)
+    return input * input
 
 def resolve_ffn_act_fn(
     config: Optional[dict] = None,
@@ -85,6 +96,8 @@ def resolve_ffn_act_fn(
     name = config.pop('name')
     if name == 'quick_gelu':
         return quickgelu_activation
+    elif name == 'squared_relu':
+        return squared_relu_activation
     else:
         if not hasattr(torch.nn.functional, name):
             raise ValueError(f'Unrecognized activation function name ({name}).')
