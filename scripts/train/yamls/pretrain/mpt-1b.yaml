@@ -75,17 +75,20 @@ model:
   logit_scale: 1.0 # ${eval:'(256 / ${model.d_model})**0.5'}
   fc_type: torch
   ffn_config:
-    ffn_type: mptmlp
+    ffn_type: ???
     ffn_act_fn: 
-      name: relu
+      name: ???
   attn_config:
     attn_type: multihead_attention
     attn_impl: flash
     attn_pdrop: 0.0
     n_heads: ${model.n_heads}
     softmax_scale: ${eval:'1 / (${model.d_model} / ${model.n_heads})**0.5'}
-    qk_ln: false
+    qk_ln: ???
     qk_gn: false
+    norm_type: rmsnorm
+    norm_eps: 1e-15
+    norm_weight: false
     fused_qkv: true
     clip_qkv: null
     attn_uses_sequence_id: false
@@ -222,7 +225,7 @@ optimizer:
   backend_steps: ???
   param_groups: # NB: add/remove `gate_proj` entry depending on ffn_type!
     - param_str_match: wte.weight
-      lr: ${eval:'${variables.embedding_lr_base} / (256)**0.5'} # ${eval:'${variables.embedding_lr_base} / 256 * ${model.d_model}**0.5'}   ////////   ${eval:'${variables.embedding_lr_base} / (256)**0.5'}
+      lr: ${eval:'${variables.embedding_lr_base} * (${model.d_model})**0.5 / 256'} # ${eval:'${variables.embedding_lr_base} / 256 * ${model.d_model}**0.5'}   ////////   ${eval:'${variables.embedding_lr_base} / (256)**0.5'}
       momentum: ${variables.embedding_momentum}
       nesterov: ${variables.embedding_nesterov}
       norm_factor: ${variables.embedding_norm_factor}
